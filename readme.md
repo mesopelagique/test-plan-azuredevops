@@ -1,8 +1,11 @@
-# Parents-group
+# Test-plan
 
-Add parents links for current work item.
+Add test plan for current work item.
 
 ![Screenshot](img/Screenshot.png)
+
+If under a requirement or a requirement only requirement's tests
+else all tests of parent feature
 
 ## To Build
 

@@ -32,7 +32,7 @@ gulp.task('inline-html', gulp.series(() => {
 gulp.task('copy', gulp.parallel('copy-img', 'copy-md', 'copy-sdk'));
 gulp.task('styles', gulp.series(async () => {
     
-    execSync("node ./node_modules/sass/sass.js ./parents.scss ./dist/parents.css", {
+    execSync("node ./node_modules/sass/sass.js ./testPlan.scss ./dist/testPlan.css", {
         stdio: [null, process.stdout, process.stderr]
     });
 }));

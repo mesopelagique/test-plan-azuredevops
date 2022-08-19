@@ -1,10 +1,10 @@
 /// <reference types="vss-web-extension-sdk" />
 
-import { ParentsControl } from "./parentsControl";
+import { TestPlanControl } from "./testPlanControl";
 import * as Controls from "VSS/Controls";
 import { IWorkItemNotificationListener } from "TFS/WorkItemTracking/ExtensionContracts";
  
-const control = <ParentsControl>Controls.BaseControl.createIn(ParentsControl, $(".parents-control"));
+const control = <TestPlanControl>Controls.BaseControl.createIn(TestPlanControl, $(".test-plan-control"));
 
 const contextData: Partial<IWorkItemNotificationListener> = {
     onSaved: (savedEventArgs) => control.onSaved(savedEventArgs),

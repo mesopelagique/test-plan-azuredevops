@@ -5,10 +5,10 @@ import { WorkItemFormService } from "TFS/WorkItemTracking/Services";
 import { getClient } from "TFS/WorkItemTracking/RestClient";
 import { idField, witField, projectField, titleField, parentField } from "./fieldNames";
 
-export class ParentsControl extends Control<{}> {
+export class TestPlanControl extends Control<{}> {
     // data
     private wiId: number;
-    private parents: WorkItem[];
+    private testPlan: WorkItem[];
     private types: Map<string, WorkItemType> = new Map<string, WorkItemType>();
  
     private async fillParents(wi: WorkItem, project: string) {
@@ -16,7 +16,7 @@ export class ParentsControl extends Control<{}> {
         if(parentId && parentId>=0) {
             const parentWi: WorkItem = await getClient().getWorkItem(parentId, [idField, titleField, parentField, witField], undefined, undefined, project);
             if (parentWi) {
-                this.parents.push(parentWi);
+                this.testPlan.push(parentWi);
                 await this.fillTypes(parentWi, project);
                 await this.fillParents(parentWi, project);
             } 
@@ -28,7 +28,7 @@ export class ParentsControl extends Control<{}> {
                     const relationId = Number(relations[0].url.split('/').pop()) // .attributes[idField];
                     console.log(relationId);
                     const parentWi: WorkItem = await getClient().getWorkItem(relationId, [idField, titleField, parentField, witField], undefined, undefined, project);
-                    this.parents.push(parentWi);
+                    this.testPlan.push(parentWi);
                     await this.fillTypes(parentWi, project);
                     await this.fillParents(parentWi, project);
                 }
@@ -49,11 +49,11 @@ export class ParentsControl extends Control<{}> {
         this.wiId = fields[idField] as number;
    
         const project = fields[projectField] as string;
-        this.parents = [];
+        this.testPlan = [];
         const wi: WorkItem = await getClient().getWorkItem(this.wiId, [parentField, witField], undefined, undefined, project);
         await this.fillParents(wi, project);
         // update ui
-        if (this.parents && this.parents.length != 0) {
+        if (this.testPlan && this.testPlan.length != 0) {
             await this.updateParents();
         } else {
             this.updateNoParent();
@@ -61,7 +61,7 @@ export class ParentsControl extends Control<{}> {
     }
 
     private updateNoParent() {
-        this._element.html(`<div class="no-parents-message">No parents</div>`);
+        this._element.html(`<div class="no-tests-message">No parents</div>`);
         VSS.resize(window.innerWidth, $(".parent-callout").outerHeight() + 16)
     }
 
@@ -69,7 +69,7 @@ export class ParentsControl extends Control<{}> {
         this._element.html("");
         const list = $("<div class=\"la-list\"></div>").appendTo(this._element);
         const types = this.types
-        this.parents.forEach(function (parent) {
+        this.testPlan.forEach(function (parent) {
             const item = $("<div class=\"la-item\"></div>").appendTo(list);
             const wrapper = $("<div class=\"la-item-wrapper\"></div>").appendTo(item);
             const artifactdata = $("<div class=\"la-artifact-data\"></div>").appendTo(wrapper);
@@ -102,11 +102,11 @@ export class ParentsControl extends Control<{}> {
 
     public onLoaded(loadedArgs: IWorkItemLoadedArgs) {
         if (loadedArgs.isNew) {
-            this._element.html(`<div class="new-wi-message">Save the work item to see parents data</div>`);
+            this._element.html(`<div class="new-wi-message">Save the work item to see the test plan data</div>`);
         } else {
             this.wiId = loadedArgs.id;
             this._element.html("");
-            this._element.append($("<div/>").text("Looking for parents..."));
+            this._element.append($("<div/>").text("Looking for tests..."));
             this.refresh();
         }
     }

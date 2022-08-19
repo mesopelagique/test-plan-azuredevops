@@ -1,10 +1,10 @@
 {
     "manifestVersion": 1,
-    "id": "parents",
-    "version": "0.0.35",
+    "id": "test-plan",
+    "version": "0.0.1",
     "name": "Parents",
     "scopes": [ "vso.work", "vso.work_write" ],
-    "description": "Show all parents.",
+    "description": "Show all testPlan.",
     "publisher": "mesopelagique",
     "icons": {
         "default": "dist/img/logo.png"
@@ -46,11 +46,11 @@
             "addressable": true
         },
         {
-            "path": "dist/parents.html",
+            "path": "dist/testPlan.html",
             "addressable": true
         },
         {
-            "path": "dist/parents.css",
+            "path": "dist/testPlan.css",
             "addressable": true
         }
     ],
@@ -67,7 +67,7 @@
             ],
             "properties": {
                 "name": "Parents",
-                "uri": "parents.html",
+                "uri": "testPlan.html",
                 "height": 180
             }
         }
