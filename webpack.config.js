@@ -17,7 +17,7 @@ module.exports = {
         "react-dom": true
     },
         /^TFS\//, // Ignore TFS/* since they are coming from VSTS host 
-        /^VSS\//  // Ignore VSS/* since they are coming from VSTS host
+        /^VSS\//  // Ignore 8V9SS/* since they are coming from VSTS host
     ],
     resolve: {
         // alias: { "office-ui-fabric-react": path.join(process.cwd(), 'node_modules', 'office-ui-fabric-react', 'lib-amd') },
