@@ -12,7 +12,7 @@ else all tests of parent feature
 ```bash
 npm run package-dev
 ```
-
+ cx
 ### request tfx to build so
 
 ```bash
