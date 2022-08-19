@@ -2,12 +2,12 @@
 
 .test-plan {
   padding-left: 4px;
-  .parent-info {
+  .test-plan-info {
     float: right;
-    &:not(:hover):not(:focus) .parent-callout {
+    &:not(:hover):not(:focus) .test-plan-callout {
       visibility: hidden;
     }
-    .parent-callout {
+    .test-plan-callout {
       font-family: "-apple-system", BlinkMacSystemFont, "Segoe UI", Roboto,
         "Helvetica Neue", Helvetica, Ubuntu, Arial, sans-serif,
         "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
@@ -29,11 +29,11 @@
     }
   }
   .test-plan-control {
-    .parent-link {
+    .test-plan-link {
       margin-bottom: 5px;
       font-size: 15px;
     }
-    .parent-selector {
+    .test-plan-selector {
       padding: 0px;
       background-color: transparent;
       vertical-align: middle;
@@ -107,7 +107,7 @@
   /* .disclaimer {
     margin-top: 10px;
 } */
-  .parent-error {
+  .test-plan-error {
     @include color(red);
   }
 }

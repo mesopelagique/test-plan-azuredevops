@@ -4,7 +4,7 @@ const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPl
 
 module.exports = {
     entry: {
-        parents: "./scripts/testPlan.ts"
+        testPlan: "./scripts/testPlan.ts"
     },
     output: {
         libraryTarget: "amd",
