@@ -3,7 +3,7 @@ import { IWorkItemChangedArgs, IWorkItemLoadedArgs } from "TFS/WorkItemTracking/
 import { WorkItem, WorkItemType, WorkItemExpand, WorkItemRelation} from "TFS/WorkItemTracking/Contracts"
 import { WorkItemFormService } from "TFS/WorkItemTracking/Services";
 import { getClient } from "TFS/WorkItemTracking/RestClient";
-import { idField, witField, projectField, titleField, parentField } from "./fieldNames";
+import { idField, witField, projectField, titleField, parentField, testSteps } from "./fieldNames";
 
 export class TestPlanControl extends Control<{}> {
     // data
@@ -42,6 +42,21 @@ export class TestPlanControl extends Control<{}> {
     private async getTestCases(requirement: WorkItem, project: string) {
         const testCases = requirement.relations.filter(relation => relation.rel == "Microsoft.VSTS.Common.TestedBy-Forward");
         return this.relationToWorkItems(testCases, project, undefined);
+    }
+
+    private getTestSteps(testCase: WorkItem) {
+        const xmlString = testCase.fields[testSteps];
+
+        const domParser = new DOMParser();
+        const xmlDocument = domParser.parseFromString(xmlString, "text/xml");
+        const steps = xmlDocument.querySelectorAll("step");
+        var result: string[] = [];
+        for (const step of steps) {
+            if (step.tagName == "step") {
+                result.push(step.textContent);
+            }
+        }
+        return result;
     }
 
     private async fillTypes(wi: WorkItem, project: string) {
@@ -156,13 +171,19 @@ export class TestPlanControl extends Control<{}> {
 
                     $("<div class=\"la-primary-data-id\" style=\"display: inline;\">"+testCase.id.toString()+"&nbsp;</div>").appendTo(primarydata);
         
-                    const link = $("<div class=\"ms-TooltipHost \" style=\"display: inline;\"></div>").appendTo(primarydata);
+                    const link = $(" <div class=\"ms-TooltipHost \" style=\"display: inline;\"></div>").appendTo(primarydata);
                     $("<a/>").text(testCase.fields[titleField])
                     .attr({
                         href: testCase._links["html"]["href"],
                         target: "_blank",
                         title: "Navigate to item"
                     }).appendTo(link);
+
+                    const testSteps = this.getTestSteps(testCase);
+                    for (const testStep of testSteps) {
+                        $("<div/>").html(testStep).appendTo(primarydata);
+                    }
+                    
                 }
             }
         }
