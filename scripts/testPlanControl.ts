@@ -5,6 +5,19 @@ import { WorkItemFormService } from "TFS/WorkItemTracking/Services";
 import { getClient } from "TFS/WorkItemTracking/RestClient";
 import { idField, witField, projectField, titleField, parentField, testSteps } from "./fieldNames";
 
+class TestStep {
+    testCase: WorkItem
+    index: number
+    action: string
+    expectedResult: string
+    constructor(testCase: WorkItem, index: number, action: string, expectedResult: string) {
+        this.testCase = testCase;
+        this.index = index;
+        this.action = action.replace(/<[^>]*>/g, "");
+        this.expectedResult = expectedResult.replace(/<[^>]*>/g, "");
+    }
+}
+
 export class TestPlanControl extends Control<{}> {
     // data
     private wiId: number;
@@ -50,10 +63,14 @@ export class TestPlanControl extends Control<{}> {
         const domParser = new DOMParser();
         const xmlDocument = domParser.parseFromString(xmlString, "text/xml");
         const steps = xmlDocument.querySelectorAll("step");
-        var result: string[] = [];
+        var result: TestStep[] = [];
+        var index = 1;
         for (const step of steps) {
             if (step.tagName == "step") {
-                result.push(step.textContent);
+                console.log(step.childNodes[0].textContent);
+                console.log(step.childNodes[1].textContent);
+                result.push(new TestStep(testCase, index, step.childNodes[0].textContent, step.childNodes[1].textContent));
+                index += 1;
             }
         }
         return result;
@@ -113,79 +130,79 @@ export class TestPlanControl extends Control<{}> {
         VSS.resize(window.innerWidth, $(".test-plan-callout").outerHeight() + 16)
     }
 
+    private appendNode(parent: any, id: number, icon: string, iconColor: string, text: string, href: string, level: number) {
+        const item = $("<div class=\"la-item\" style=\"padding-left: "+(level * 12).toString()+"px;\"></div>").appendTo(parent);
+        const wrapper = $("<div class=\"la-item-wrapper\"></div>").appendTo(item);
+        const artifactdata = $("<div class=\"la-artifact-data\"></div>").appendTo(wrapper);
+        const primarydata = $("<div class=\"la-primary-data\"></div>").appendTo(artifactdata);
+
+        const primaryicon = $("<div class=\"la-primary-icon\" style=\"display: inline;\">&nbsp;</div>").appendTo(primarydata);
+
+        if (iconColor.length>0) {
+            $("<span aria-hidden=\"true\" class=\"bowtie-icon "+icon+" flex-noshrink\";\" style=\"color: "+iconColor+";\"> </span>&nbsp;").appendTo(primaryicon);
+        } else {
+            $("<span aria-hidden=\"true\" class=\"bowtie-icon "+icon+" flex-noshrink\";\"> </span>&nbsp;").appendTo(primaryicon);
+        }
+        if (id>=0) {
+            $("<div class=\"la-primary-data-id\" style=\"display: inline;\">&nbsp;"+id.toString()+"&nbsp;</div>").appendTo(primarydata);
+        } else {
+            $("<div class=\"la-primary-data-id\" style=\"display: inline;\">&nbsp;&nbsp;</div>").appendTo(primarydata);
+        }
+        const link = $("<div class=\"ms-TooltipHost \" style=\"display: inline;\"></div>").appendTo(primarydata);
+        $("<a/>").text(text)
+        .attr({
+            href: href,
+            target: "_blank",
+            title: "Navigate to item"
+        }).appendTo(link);
+    }
+
+    private async getWorkItemType(item: WorkItem, project: string) {
+        var type: WorkItemType = this.types.get(item.fields[witField])
+        if (type == null) {
+            await this.fillTypes(item, project);
+            type = this.types.get(item.fields[witField])
+        }
+        return type
+    }
+
     private async updateTestPlan(project: string) {
         this._element.html("");
         const list = $("<div class=\"la-list\"></div>").appendTo(this._element);
    
         for (const requirement of this.requirements) {
-            const item = $("<div class=\"la-item\"></div>").appendTo(list);
-            const wrapper = $("<div class=\"la-item-wrapper\"></div>").appendTo(item);
-            const artifactdata = $("<div class=\"la-artifact-data\"></div>").appendTo(wrapper);
-            const primarydata = $("<div class=\"la-primary-data\"></div>").appendTo(artifactdata);
- 
-            const primaryicon = $("<div class=\"la-primary-icon\" style=\"display: inline;\">&nbsp;</div>").appendTo(primarydata);
-
-            var type: WorkItemType = this.types.get(requirement.fields[witField])
-            if (type == null) {
-                await this.fillTypes(requirement, project);
-                type = this.types.get(requirement.fields[witField])
-            }
+            var iconsymbol = "bowtie-symbol-stickynote"
+            var iconcolor = ""
+            var type: WorkItemType = await this.getWorkItemType(requirement, project);
             if (type != null) {
-                const iconsymbol = "bowtie-symbol-"+type.icon.id
+                iconsymbol = "bowtie-symbol-"+type.icon.id
                 .replace("icon_", "")
                 .replace("symbol-check_box", "status-success-box")
                 .replace("_", ""); // no info how to convert api info and bowtie map
-                const iconcolor = "#"+type.color;
-                $("<span aria-hidden=\"true\" class=\"bowtie-icon "+iconsymbol+" flex-noshrink\" style=\"color: "+iconcolor+";\"> </span>&nbsp;").appendTo(primaryicon);
+                iconcolor = "#"+type.color;
             }
-
-            $("<div class=\"la-primary-data-id\" style=\"display: inline;\">"+requirement.id.toString()+"&nbsp;</div>").appendTo(primarydata);
-
-            const link = $("<div class=\"ms-TooltipHost \" style=\"display: inline;\"></div>").appendTo(primarydata);
-            $("<a/>").text(requirement.fields[titleField])
-            .attr({
-                href: requirement._links["html"]["href"],
-                target: "_blank",
-                title: "Navigate to item"
-            }).appendTo(link);
+            this.appendNode(list, requirement.id, iconsymbol, iconcolor, requirement.fields[titleField], requirement._links["html"]["href"], 0);
 
             const testCases = this.testPlans[requirement.id];
             if (testCases) {
                 for (const testCase of testCases) {
-                    const item = $("<div class=\"la-item\"></div>").appendTo(list);
-                    const wrapper = $("<div class=\"la-item-wrapper\"></div>").appendTo(item);
-                    const artifactdata = $("<div class=\"la-artifact-data\"></div>").appendTo(wrapper);
-                    const primarydata = $("<div class=\"la-primary-data\"></div>").appendTo(artifactdata);
-         
-                    const primaryicon = $("<div class=\"la-primary-icon\" style=\"display: inline;\">&nbsp;</div>").appendTo(primarydata);
-        
-                    var type: WorkItemType = this.types.get(testCase.fields[witField])
-                    if (type == null) {
-                        await this.fillTypes(testCase, project);
-                        type = this.types.get(testCase.fields[witField])
-                    }
+                    $("<div><hr style=\"margin: 0 0 0 12px; height: 5px; border: 0px solid #D6D6D6; border-top-width: 1px;\">").appendTo(list);
+                    iconcolor = ""
+                    type = await this.getWorkItemType(testCase, project);
                     if (type != null) {
-                        const iconcolor = "#"+type.color;
-                        $("<span aria-hidden=\"true\" class=\"bowtie-icon bowtie-test-case flex-noshrink\" style=\"color: "+iconcolor+";\"> </span>&nbsp;").appendTo(primaryicon);
+                        iconcolor = "#"+type.color;
                     }
-
-                    $("<div class=\"la-primary-data-id\" style=\"display: inline;\">"+testCase.id.toString()+"&nbsp;</div>").appendTo(primarydata);
-        
-                    const link = $(" <div class=\"ms-TooltipHost \" style=\"display: inline;\"></div>").appendTo(primarydata);
-                    $("<a/>").text(testCase.fields[titleField])
-                    .attr({
-                        href: testCase._links["html"]["href"],
-                        target: "_blank",
-                        title: "Navigate to item"
-                    }).appendTo(link);
-
+                    this.appendNode(list, testCase.id, "bowtie-test-case", iconcolor, testCase.fields[titleField], testCase._links["html"]["href"], 1);
                     const testSteps = this.getTestSteps(testCase);
                     for (const testStep of testSteps) {
-                        $("<div/>").html(testStep).appendTo(primarydata);
+                        this.appendNode(list, testStep.index, "bowtie-step", "", testStep.action, testCase._links["html"]["href"], 2);
+                        if (testStep.expectedResult.length>0) {
+                            this.appendNode(list, -1, "bowtie-watch-eye", "", testStep.expectedResult, testCase._links["html"]["href"], 3);
+                        }
                     }
-                    
                 }
             }
+            $("<div><hr/></div>").appendTo(list);
         }
         VSS.resize();
     }
