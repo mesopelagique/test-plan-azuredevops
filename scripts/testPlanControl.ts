@@ -27,15 +27,13 @@ export class TestPlanControl extends Control<{}> {
 
     // transform relations to items with all data
     private async relationToWorkItems(relations: WorkItemRelation[], project: string, expand?: WorkItemExpand) {
-        var items: WorkItem[] = []
-        for (const relation of relations) {
-            const relationId = Number(relation.url.split('/').pop()) // not very clean way to get id, and project could differ?
-            const item: WorkItem = await getClient().getWorkItem(relationId, undefined, undefined, expand, project);
-            if (item) {
-                items.push(item)
-            }
-        }
-        return items
+        return await Promise.all(
+            relations.map(async (relation) => {
+                const relationId = Number(relation.url.split('/').pop()) // not very clean way to get id, and project could differ?
+                const item: WorkItem = await getClient().getWorkItem(relationId, undefined, undefined, expand, project);
+                return item
+            })
+        );
     }
     
     // Get children of type requirement, feature must have `relations` filled
@@ -47,14 +45,23 @@ export class TestPlanControl extends Control<{}> {
             return requirement.fields["System.WorkItemType"] == "Requirement"
         })
         .sort(function(x,y) {
-            return x.fields["System.Title"].localeCompare(y.fields["System.Title"], 'en', {numeric: true});
+            return x.fields[titleField].localeCompare(y.fields[titleField], 'en', {numeric: true});
         });
     }
     
     // Get element that test the requirement, requirement must have `relations` filled
     private async getTestCases(requirement: WorkItem, project: string) {
         const testCases = requirement.relations.filter(relation => relation.rel == "Microsoft.VSTS.Common.TestedBy-Forward");
-        return this.relationToWorkItems(testCases, project, undefined);
+        const testCase = await this.relationToWorkItems(testCases, project, undefined);
+        return testCase.sort(function(x,y) {
+            if (x.id > y.id) {
+                return 1;
+            }
+            if (x.id < y.id) {
+                return -1;
+            }
+            return 0;
+        });
     }
 
     private getTestSteps(testCase: WorkItem) {
@@ -95,10 +102,12 @@ export class TestPlanControl extends Control<{}> {
             const requirements: WorkItem[] = await this.getRequirements(feature, project);
             this.requirements = requirements
 
-            for (const requirement of requirements) {
-                const testCases = await this.getTestCases(requirement, project);
-                this.testPlans[requirement.id] = testCases;
-            }
+            await Promise.all(
+                this.requirements.map(async (requirement) => {
+                    const testCases = await this.getTestCases(requirement, project);
+                    this.testPlans[requirement.id] = testCases;
+                })
+            );
 
         } else {
             const item: WorkItem = await getClient().getWorkItem(parentId, [witField, parentField, titleField, idField], undefined, undefined, project);
@@ -130,8 +139,8 @@ export class TestPlanControl extends Control<{}> {
         VSS.resize(window.innerWidth, $(".test-plan-callout").outerHeight() + 16)
     }
 
-    private appendNode(parent: any, id: number, icon: string, iconColor: string, text: string, href: string, level: number) {
-        const item = $("<div class=\"la-item\" style=\"padding-left: "+(level * 12).toString()+"px;\"></div>").appendTo(parent);
+    private appendNode(parent: any, id: number, icon: string, iconColor: string, text: string, href: string, level: number, name: string) {
+        const item = $("<div class=\"la-item la-item-"+name+"\" style=\"padding-left: "+(level * 12).toString()+"px;\"></div>").appendTo(parent);
         const wrapper = $("<div class=\"la-item-wrapper\"></div>").appendTo(item);
         const artifactdata = $("<div class=\"la-artifact-data\"></div>").appendTo(wrapper);
         const primarydata = $("<div class=\"la-primary-data\"></div>").appendTo(artifactdata);
@@ -181,7 +190,7 @@ export class TestPlanControl extends Control<{}> {
                 .replace("_", ""); // no info how to convert api info and bowtie map
                 iconcolor = "#"+type.color;
             }
-            this.appendNode(list, requirement.id, iconsymbol, iconcolor, requirement.fields[titleField], requirement._links["html"]["href"], 0);
+            this.appendNode(list, requirement.id, iconsymbol, iconcolor, requirement.fields[titleField], requirement._links["html"]["href"], 0, "requirement");
 
             const testCases = this.testPlans[requirement.id];
             if (testCases) {
@@ -192,12 +201,13 @@ export class TestPlanControl extends Control<{}> {
                     if (type != null) {
                         iconcolor = "#"+type.color;
                     }
-                    this.appendNode(list, testCase.id, "bowtie-test-case", iconcolor, testCase.fields[titleField], testCase._links["html"]["href"], 1);
+                    this.appendNode(list, testCase.id, "bowtie-test-case", iconcolor, testCase.fields[titleField], testCase._links["html"]["href"], 1, "test-case");
+               
                     const testSteps = this.getTestSteps(testCase);
                     for (const testStep of testSteps) {
-                        this.appendNode(list, testStep.index, "bowtie-step", "", testStep.action, testCase._links["html"]["href"], 2);
+                        this.appendNode(list, testStep.index, "bowtie-step", "", testStep.action, testCase._links["html"]["href"], 2, "test-step");
                         if (testStep.expectedResult.length>0) {
-                            this.appendNode(list, -1, "bowtie-watch-eye", "", testStep.expectedResult, testCase._links["html"]["href"], 3);
+                            this.appendNode(list, -1, "bowtie-watch-eye", "", testStep.expectedResult, testCase._links["html"]["href"], 3, "test-step-expected-result");
                         }
                     }
                 }
@@ -214,6 +224,19 @@ export class TestPlanControl extends Control<{}> {
             this.wiId = loadedArgs.id;
             this._element.html("");
             this._element.append($("<div/>").text("Looking for tests..."));
+            $(".test-plan-refresh").click(() => {
+                $( ".test-plan-show-step" ).prop( "checked", true );
+                this.refresh();
+            });
+            $('.test-plan-show-step').change(function() {
+                if($('.test-plan-show-step').is(":checked")) {
+                    $('.la-item-test-step').removeClass("hidden");
+                    $('.la-item-test-step-expected-result').removeClass("hidden");
+                } else {
+                    $('.la-item-test-step').addClass("hidden");
+                    $('.la-item-test-step-expected-result').addClass("hidden");
+                }       
+            });
             this.refresh();
         }
     }
@@ -225,4 +248,5 @@ export class TestPlanControl extends Control<{}> {
     public onSaved(_: IWorkItemChangedArgs) {
         this.refresh();
     }
+
 }

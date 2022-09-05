@@ -1,7 +1,7 @@
 {
     "manifestVersion": 1,
     "id": "test-plan",
-    "version": "0.0.32",
+    "version": "0.0.41",
     "name": "Test Plan",
     "scopes": [ "vso.work", "vso.work_write" ],
     "description": "Show all testPlan.",
