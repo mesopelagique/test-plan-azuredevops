@@ -25,9 +25,6 @@
             }
         }
     }
-    .test-plan-refresh {
-        float: right;
-    }
     .test-plan-control {
         .test-plan-link {
             margin-bottom: 5px;
@@ -105,11 +102,14 @@
             }
         }
     }
-    /* .disclaimer {
-    margin-top: 10px;
-} */
     .test-plan-error {
         @include color(red);
+    }
+    .test-plan-refresh {
+        cursor: pointer;
+    }
+    .test-plan-refresh:hover {
+        background-color: lightgray;
     }
 }
 
