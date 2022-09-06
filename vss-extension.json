@@ -1,9 +1,9 @@
 {
     "manifestVersion": 1,
     "id": "test-plan",
-    "version": "0.0.42",
+    "version": "0.0.47",
     "name": "Test Plan",
-    "scopes": [ "vso.work", "vso.work_write" ],
+    "scopes": [ "vso.work", "vso.work_write", "vso.test" ],
     "description": "Show all testPlan.",
     "publisher": "mesopelagique",
     "icons": {

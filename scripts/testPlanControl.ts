@@ -4,6 +4,8 @@ import { WorkItem, WorkItemType, WorkItemExpand, WorkItemRelation} from "TFS/Wor
 import { WorkItemFormService } from "TFS/WorkItemTracking/Services";
 import { getClient } from "TFS/WorkItemTracking/RestClient";
 import { idField, witField, projectField, titleField, parentField, testSteps } from "./fieldNames";
+import { getClient as getTestClient } from "TFS/TestManagement/RestClient";
+import { TestPoint } from "TFS/TestManagement/Contracts"
 
 class TestStep {
     testCase: WorkItem
@@ -24,6 +26,8 @@ export class TestPlanControl extends Control<{}> {
     private requirements: WorkItem[];
     private testPlans: { [reqId: number]: WorkItem[] };
     private types: Map<string, WorkItemType> = new Map<string, WorkItemType>();
+    private testCaseOutcomes: { [testCaseId: number]: TestPoint };
+    private cacheTestPoint: { [testSuiteAndPlanId: string]: TestPoint[] };
 
     // transform relations to items with all data
     private async relationToWorkItems(relations: WorkItemRelation[], project: string, expand?: WorkItemExpand) {
@@ -74,8 +78,8 @@ export class TestPlanControl extends Control<{}> {
         var index = 1;
         for (const step of steps) {
             if (step.tagName == "step") {
-                console.log(step.childNodes[0].textContent);
-                console.log(step.childNodes[1].textContent);
+                //console.log(step.childNodes[0].textContent);
+                //console.log(step.childNodes[1].textContent);
                 result.push(new TestStep(testCase, index, step.childNodes[0].textContent, step.childNodes[1].textContent));
                 index += 1;
             }
@@ -106,6 +110,28 @@ export class TestPlanControl extends Control<{}> {
                 this.requirements.map(async (requirement) => {
                     const testCases = await this.getTestCases(requirement, project);
                     this.testPlans[requirement.id] = testCases;
+
+                    await Promise.all(
+                        testCases.map(async (testCase) => {
+                            const testSuites = await getTestClient().getSuitesByTestCaseId(testCase.id);
+                            if (testSuites.length>0) {
+                                var testSuite = testSuites[0];
+                                var testPoints: TestPoint[];
+                                if (this.cacheTestPoint[testSuite.plan.id+":"+testSuite.id.toString()] != undefined)
+                                    testPoints = this.cacheTestPoint[testSuite.plan.id+":"+testSuite.id.toString()];
+                                else {
+                                    testPoints = await getTestClient().getPoints(project, Number(testSuite.plan.id), testSuite.id);
+                                    this.cacheTestPoint[testSuite.plan.id+":"+testSuite.id.toString()] = testPoints;
+                                }
+                                testPoints = testPoints.filter(testPoint => Number(testPoint.testCase.id) == testCase.id );
+                                const testPoint = testPoints.sort((el1, el2) => el1.lastUpdatedDate.getTime() - el2.lastUpdatedDate.getTime()).find(el => el.outcome.length>0);
+                                if (testPoint != undefined) {
+                                    this.testCaseOutcomes[testCase.id]=testPoint;
+                                }
+                            }
+                        })
+                    );
+               
                 })
             );
 
@@ -124,6 +150,8 @@ export class TestPlanControl extends Control<{}> {
         const project = fields[projectField] as string;
         this.requirements = [];
         this.testPlans = {};
+        this.testCaseOutcomes = {};
+        this.cacheTestPoint = {};
 
         await this.fillTestPlan(this.wiId, fields[witField] as string, fields[parentField] as number, project);
         // update ui
@@ -153,7 +181,7 @@ export class TestPlanControl extends Control<{}> {
             $("<span aria-hidden=\"true\" class=\"bowtie-icon "+icon+" flex-noshrink\";\"> </span>&nbsp;").appendTo(primaryicon);
         }
         if (id>=0) {
-            $("<div class=\"la-primary-data-id\" style=\"display: inline;\">&nbsp;"+id.toString()+"&nbsp;</div>").appendTo(primarydata);
+            $("<div class=\"la-primary-data-id\" id=\"workitem-"+id.toString()+"\" style=\"display: inline;\">&nbsp;"+id.toString()+"&nbsp;</div>").appendTo(primarydata);
         } else {
             $("<div class=\"la-primary-data-id\" style=\"display: inline;\">&nbsp;&nbsp;</div>").appendTo(primarydata);
         }
@@ -164,6 +192,7 @@ export class TestPlanControl extends Control<{}> {
             target: "_blank",
             title: "Navigate to item"
         }).appendTo(link);
+        return item;
     }
 
     private async getWorkItemType(item: WorkItem, project: string) {
@@ -201,8 +230,17 @@ export class TestPlanControl extends Control<{}> {
                     if (type != null) {
                         iconcolor = "#"+type.color;
                     }
-                    this.appendNode(list, testCase.id, "bowtie-test-case", iconcolor, testCase.fields[titleField], testCase._links["html"]["href"], 1, "test-case");
-               
+                    const testCaseNode = this.appendNode(list, testCase.id, "bowtie-test-case", iconcolor, testCase.fields[titleField], testCase._links["html"]["href"], 1, "test-case");
+
+                    if (this.testCaseOutcomes[testCase.id] != undefined) {
+                        const testPoint = this.testCaseOutcomes[testCase.id];
+                        if (testPoint.outcome == "Passed") {
+                           testCaseNode.prepend($("<span class=\"bowtie-icon bowtie-status-success test-plan-info\"></span>"))
+                        } else if (testPoint.outcome == "Failed") {
+                            testCaseNode.prepend($("<span class=\"bowtie-icon bowtie-status-error test-plan-info\"></span>"))
+                        }
+                    }
+
                     const testSteps = this.getTestSteps(testCase);
                     for (const testStep of testSteps) {
                         this.appendNode(list, testStep.index, "bowtie-step", "", testStep.action, testCase._links["html"]["href"], 2, "test-step");
