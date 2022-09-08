@@ -43,14 +43,24 @@ export class TestPlanControl extends Control<{}> {
     // Get children of type requirement, feature must have `relations` filled
     private async getRequirements(feature: WorkItem, project: string) {
         const childRelations = feature.relations.filter(relation => relation.rel == "System.LinkTypes.Hierarchy-Forward");
-    
-        var requirements: WorkItem[] = await this.relationToWorkItems(childRelations, project, WorkItemExpand.Relations)
+        const requirements: WorkItem[] = await this.relationToWorkItems(childRelations, project, WorkItemExpand.Relations)
+
+        var sortComparator = function(x: WorkItem, y: WorkItem) {
+            if (x.id > y.id) return 1;
+            if (x.id < y.id) return -1;
+            return 0;
+        }
+        if (requirements.length>0) {
+            if (/^\d*\./.test(requirements[0].fields[titleField] as string)) {
+                sortComparator = function(x: WorkItem, y: WorkItem) {
+                    return x.fields[titleField].localeCompare(y.fields[titleField], 'en', {numeric: true});
+                }
+            }
+        }
+
         return requirements.filter(function(requirement) {
             return requirement.fields["System.WorkItemType"] == "Requirement"
-        })
-        .sort(function(x,y) {
-            return x.fields[titleField].localeCompare(y.fields[titleField], 'en', {numeric: true});
-        });
+        }).sort(sortComparator);
     }
     
     // Get element that test the requirement, requirement must have `relations` filled
