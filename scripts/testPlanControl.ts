@@ -229,7 +229,15 @@ export class TestPlanControl extends Control<{}> {
                 .replace("_", ""); // no info how to convert api info and bowtie map
                 iconcolor = "#"+type.color;
             }
-            this.appendNode(list, requirement.id, iconsymbol, iconcolor, requirement.fields[titleField], requirement._links["html"]["href"], 0, "requirement");
+            const requirementNode = this.appendNode(list, requirement.id, iconsymbol, iconcolor, requirement.fields[titleField], requirement._links["html"]["href"], 0, "requirement");
+            const userAcceptance = requirement.fields["Microsoft.VSTS.CMMI.UserAcceptanceTest"] as string;
+            if (userAcceptance == "Pass") {
+                requirementNode.prepend($("<span class=\"bowtie-icon bowtie-status-success test-plan-info\" title=\"User Acceptance "+userAcceptance+"\"></span>"))
+            } else if (userAcceptance == "Failed") {
+                requirementNode.prepend($("<span class=\"bowtie-icon bowtie-status-error test-plan-info\" title=\"User Acceptance "+userAcceptance+"\"></span>"))
+            } else if (userAcceptance == "Ready") {
+                requirementNode.prepend($("<span class=\"bowtie-icon bowtie-record-fill test-plan-info\" title=\"User Acceptance "+userAcceptance+"\" style=\"color: rgb(0, 122, 204)\"></span>"))
+            }
 
             const testCases = this.testPlans[requirement.id];
             if (testCases) {
@@ -245,9 +253,13 @@ export class TestPlanControl extends Control<{}> {
                     if (this.testCaseOutcomes[testCase.id] != undefined) {
                         const testPoint = this.testCaseOutcomes[testCase.id];
                         if (testPoint.outcome == "Passed") {
-                           testCaseNode.prepend($("<span class=\"bowtie-icon bowtie-status-success test-plan-info\"></span>"))
+                           testCaseNode.prepend($("<span class=\"bowtie-icon bowtie-status-success test-plan-info\" title=\"Test Outcome "+testPoint.outcome+"\"></span>"))
                         } else if (testPoint.outcome == "Failed") {
-                            testCaseNode.prepend($("<span class=\"bowtie-icon bowtie-status-error test-plan-info\"></span>"))
+                            testCaseNode.prepend($("<span class=\"bowtie-icon bowtie-status-error test-plan-info\" title=\"Test Outcome "+testPoint.outcome+"\"></span>"))
+                        } else if (userAcceptance == "Active") {
+                            requirementNode.prepend($("<span class=\"bowtie-icon bowtie-record-fill test-plan-info\" title=\"Test Outcome "+testPoint.outcome+"\" style=\"color: rgb(0, 122, 204)\"></span>"))
+                        } else if (userAcceptance == "Blocked") {
+                            testCaseNode.prepend($("<span class=\"bowtie-icon bowtie-status-stop test-plan-info\" title=\"Test Outcome "+testPoint.outcome+"\"></span>"))
                         }
                     }
 
